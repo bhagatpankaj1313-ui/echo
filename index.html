@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#0b1117" />
+  <link rel="icon" href="data:," />
+  <title>Echo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@500;600;700;800&display=swap');
+    :root{
+      --bg:#e8edf0; --panel:#f7f9fa; --ink:#101820; --muted:#52616d;
+      --line:#c1ccd2; --cyan:#007e88; --cyan-bright:#00a9b7; --coral:#e9513e;
+      --gold:#c48200; --shadow:rgba(23,39,50,.13); --well:#dce4e8;
+    }
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg:#081018; --panel:#0f1922; --ink:#f2f5f5; --muted:#9cabb5;
+        --line:#273844; --cyan:#50d9df; --cyan-bright:#75f2f4; --coral:#ff6a55;
+        --gold:#ffc65a; --shadow:rgba(0,0,0,.36); --well:#09131b;
+      }
+    }
+    *{box-sizing:border-box}
+    html,body{min-height:100%;overscroll-behavior:none}
+    body{
+      margin:0; color:var(--ink); background:
+        linear-gradient(var(--line) 1px,transparent 1px),
+        linear-gradient(90deg,var(--line) 1px,transparent 1px),var(--bg);
+      background-size:32px 32px; font-family:Manrope,system-ui,sans-serif;
+      -webkit-tap-highlight-color:transparent;
+    }
+    button{font:inherit;color:inherit}
+    .app{min-height:100svh;max-width:1180px;margin:auto;padding:clamp(12px,2vw,24px)}
+    .topbar{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+    .mission{min-width:0;flex:1}
+    .mission h1{font-size:clamp(18px,3vw,25px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.03em}
+    .mission p{margin:4px 0 0;color:var(--muted);font:500 12px/1.2 DM Mono,monospace}
+    .tools{display:flex;gap:6px}
+    .icon-btn,.level-chip{
+      border:1px solid var(--line);background:var(--panel);min-height:42px;padding:0 13px;
+      box-shadow:0 4px 14px var(--shadow);cursor:pointer
+    }
+    .icon-btn{width:44px;padding:0;display:grid;place-items:center;font-size:19px}
+    .level-chip{font:600 12px DM Mono,monospace;white-space:nowrap}
+    .game-shell{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px;align-items:stretch}
+    .stage{
+      position:relative;min-width:0;background:var(--well);border:1px solid var(--line);
+      box-shadow:0 14px 38px var(--shadow);overflow:hidden;min-height:390px
+    }
+    canvas{display:block;width:100%;height:100%;min-height:390px;touch-action:none}
+    .stage-hud{position:absolute;inset:10px 10px auto;display:flex;justify-content:space-between;pointer-events:none}
+    .counter{background:color-mix(in srgb,var(--panel) 88%,transparent);border:1px solid var(--line);padding:7px 9px;font:500 11px DM Mono,monospace;box-shadow:0 3px 10px var(--shadow)}
+    .side{background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 28px var(--shadow);padding:18px;display:flex;flex-direction:column;gap:16px}
+    .brief{min-height:114px}
+    .brief .num{font:500 11px DM Mono,monospace;color:var(--cyan);margin-bottom:9px}
+    .brief h2{font-size:22px;letter-spacing:-.035em;margin:0 0 7px;line-height:1.05}
+    .brief p{color:var(--muted);font-size:13px;line-height:1.5;margin:0}
+    .echo-bank{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:13px 0}
+    .label{font:500 10px DM Mono,monospace;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px}
+    .echo-dots{display:flex;gap:7px;min-height:18px;align-items:center}
+    .echo-dot{width:11px;height:11px;border:2px solid var(--cyan);transform:rotate(45deg);background:transparent}
+    .echo-dot.filled{background:var(--cyan)}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .btn{min-height:44px;border:1px solid var(--line);background:var(--panel);font-size:12px;font-weight:700;cursor:pointer;padding:8px 10px}
+    .btn:active,.icon-btn:active,.level-chip:active,.pad button:active{transform:translateY(1px)}
+    .btn.primary{grid-column:1/-1;background:var(--cyan);border-color:var(--cyan);color:#041214}
+    @media (prefers-color-scheme:light){.btn.primary{color:#fff}}
+    .btn[disabled]{opacity:.38;cursor:not-allowed}
+    .tip{margin-top:auto;background:var(--well);padding:12px;font-size:11px;line-height:1.45;color:var(--muted)}
+    .tip strong{color:var(--ink)}
+    .pad{display:none;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(2,48px);justify-content:center;gap:6px;margin-top:12px}
+    .pad button{border:1px solid var(--line);background:var(--panel);font:700 20px DM Mono,monospace;box-shadow:0 3px 10px var(--shadow);touch-action:manipulation}
+    .pad .up{grid-column:2}.pad .left{grid-column:1}.pad .down{grid-column:2}.pad .right{grid-column:3}
+    .overlay{position:absolute;inset:0;display:grid;place-items:center;background:color-mix(in srgb,var(--well) 80%,transparent);padding:20px;z-index:5}
+    .overlay[hidden]{display:none}
+    .card{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);box-shadow:0 18px 60px var(--shadow);padding:clamp(22px,5vw,36px);text-align:left}
+    .glyph{width:46px;height:46px;border:2px solid var(--cyan);transform:rotate(45deg);display:grid;place-items:center;margin:2px 0 24px}
+    .glyph:before{content:"";width:17px;height:17px;background:var(--cyan)}
+    .card h2{font-size:clamp(26px,7vw,44px);letter-spacing:-.055em;line-height:.92;margin:0 0 13px}
+    .card p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 20px}
+    .card .btn{width:100%;background:var(--cyan);color:#041214;border-color:var(--cyan)}
+    @media (prefers-color-scheme:light){.card .btn{color:#fff}}
+    .mini-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0}
+    .mini-steps div{border-top:2px solid var(--line);padding-top:8px;font:500 10px/1.35 DM Mono,monospace;color:var(--muted)}
+    .mini-steps b{display:block;color:var(--ink);font-size:13px;margin-bottom:3px}
+    .level-drawer{position:fixed;inset:0;z-index:20;background:color-mix(in srgb,var(--bg) 94%,transparent);padding:clamp(16px,4vw,42px);overflow:auto}
+    .level-drawer[hidden]{display:none}
+    .drawer-head{max-width:820px;margin:0 auto 20px;display:flex;justify-content:space-between;align-items:end;gap:16px}
+    .drawer-head h2{font-size:clamp(30px,7vw,56px);line-height:.9;margin:0;letter-spacing:-.055em}
+    .level-grid{max-width:820px;margin:auto;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
+    .level-tile{min-height:118px;padding:14px;text-align:left;background:var(--panel);border:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line);cursor:pointer;position:relative}
+    .level-tile:hover{background:var(--well)}
+    .level-tile .n{font:500 10px DM Mono,monospace;color:var(--muted)}
+    .level-tile b{display:block;margin-top:24px;font-size:14px;line-height:1.1}
+    .level-tile.done:after{content:"◆";position:absolute;right:13px;top:11px;color:var(--cyan)}
+    .level-tile.current{box-shadow:inset 0 -4px var(--coral)}
+    .toast{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--bg);padding:10px 14px;font:500 11px DM Mono,monospace;box-shadow:0 8px 25px var(--shadow);opacity:0;pointer-events:none;transition:opacity .18s}
+    .toast.show{opacity:1}
+    @media(max-width:780px){
+      .app{padding:10px 10px calc(12px + env(safe-area-inset-bottom))}
+      .topbar{margin-bottom:9px}.mission p{display:none}.tools{gap:4px}
+      .game-shell{display:block}.stage{min-height:0;aspect-ratio:1/1}.stage canvas{min-height:0}
+      .side{margin-top:9px;padding:13px;display:grid;grid-template-columns:1fr auto;gap:10px 12px}
+      .brief{min-height:0}.brief .num{margin-bottom:5px}.brief h2{font-size:18px;margin-bottom:4px}.brief p{font-size:12px;line-height:1.4}
+      .echo-bank{border:0;padding:0;min-width:112px}.label{margin-bottom:7px}
+      .actions{grid-column:1/-1;grid-template-columns:1.2fr 1fr 1fr}.btn.primary{grid-column:auto}
+      .tip{display:none}.pad{display:grid}
+      .level-grid{grid-template-columns:repeat(2,1fr)}
+      .level-tile{min-height:100px}.level-tile b{margin-top:17px}
+    }
+    @media(max-height:680px) and (orientation:landscape){
+      .app{padding:8px;max-width:1000px}.topbar{margin-bottom:6px}.mission p{display:none}
+      .game-shell{grid-template-columns:minmax(0,1fr) 260px;gap:8px}.stage,canvas{min-height:315px}
+      .side{padding:12px;gap:9px}.brief{min-height:80px}.brief h2{font-size:18px}.brief p{font-size:11px}.tip{display:none}.pad{display:none}
+    }
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="mission"><h1 id="missionTitle">Signal acquired</h1><p id="missionMeta">LOOP 01 · ECHO CHAMBER</p></div>
+    <div class="tools">
+      <button class="level-chip" id="levelBtn" aria-label="Choose level">01 / 12</button>
+      <button class="icon-btn" id="soundBtn" aria-label="Toggle sound">♪</button>
+    </div>
+  </header>
+  <section class="game-shell">
+    <div class="stage" id="stage">
+      <canvas id="game" aria-label="Turn-based puzzle board"></canvas>
+      <div class="stage-hud"><div class="counter" id="stepCount">00 BEATS</div><div class="counter" id="shardCount">◇ 0 / 0</div></div>
+      <div class="overlay" id="intro">
+        <div class="card">
+          <div class="glyph"></div>
+          <h2>Cooperate with who you were.</h2>
+          <p>Move through a fractured signal. Record your route, rewind, then let your past self replay it beside you.</p>
+          <div class="mini-steps"><div><b>1</b>Move</div><div><b>2</b>Record</div><div><b>3</b>Synchronize</div></div>
+          <button class="btn" id="startBtn">Enter the signal</button>
+        </div>
+      </div>
+      <div class="overlay" id="complete" hidden>
+        <div class="card">
+          <div class="glyph"></div>
+          <h2 id="completeTitle">Signal restored.</h2>
+          <p id="completeText">Your timeline and its echo converged.</p>
+          <button class="btn" id="nextBtn">Continue</button>
+        </div>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="brief"><div class="num" id="briefNum">TRANSMISSION 01</div><h2 id="briefTitle">First contact</h2><p id="briefText">Collect the fragment, then reach the bright exit.</p></div>
+      <div class="echo-bank"><div class="label">Recorded echoes</div><div class="echo-dots" id="echoDots"></div></div>
+      <div class="actions">
+        <button class="btn primary" id="recordBtn">Record echo</button>
+        <button class="btn" id="undoBtn">Undo beat</button>
+        <button class="btn" id="restartBtn">Restart</button>
+      </div>
+      <div class="tip" id="tip"><strong>Move:</strong> arrow keys / WASD<br><strong>Record:</strong> spacebar<br><strong>Goal:</strong> collect every fragment, reach the exit</div>
+    </aside>
+  </section>
+  <div class="pad" aria-label="Movement controls">
+    <button class="up" data-dir="U" aria-label="Move up">↑</button>
+    <button class="left" data-dir="L" aria-label="Move left">←</button>
+    <button class="down" data-dir="D" aria-label="Move down">↓</button>
+    <button class="right" data-dir="R" aria-label="Move right">→</button>
+  </div>
+</main>
+<section class="level-drawer" id="drawer" hidden>
+  <div class="drawer-head"><div><div class="label">Signal archive</div><h2>Choose a loop</h2></div><button class="icon-btn" id="closeDrawer" aria-label="Close levels">×</button></div>
+  <div class="level-grid" id="levelGrid"></div>
+</section>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(function(){
+  'use strict';
+  const levels=[
+    {name:'First contact',meta:'LOOP 01 · WAKE',text:'Collect the fragment, then reach the bright exit.',hint:'No echo needed. Learn the rhythm of the grid.',map:[
+      '#############','#S....*....X.#','#...#####...#','#...........#','#############']},
+    {name:'Hold the door',meta:'LOOP 02 · ANCHOR',text:'End a recording on the cyan switch. Your echo will hold it down.',hint:'Walk right onto the diamond switch, then record.',map:[
+      '#############','#S..1..A..X.#','#...........#','#############']},
+    {name:'The side channel',meta:'LOOP 03 · DETOUR',text:'Leave one version of you below while the next takes the upper route.',hint:'End your first route on the switch in the lower passage.',map:[
+      '#############','#S...#..A.X.#','#....#......#','#..1.....*..#','#############']},
+    {name:'Two memories',meta:'LOOP 04 · LAYERS',text:'One echo holds the first lock. A second can travel through it to the next.',hint:'Record on switch 1. In the next loop, cross A and stop on switch 2.',map:[
+      '###############','#S..1.A..2.BX.#','#.............#','###############']},
+    {name:'Distant light',meta:'LOOP 05 · RECOVERY',text:'A fragment waits off-route. Keep the gate open while the present retrieves it.',hint:'An echo at switch 1 gives you time to explore both branches.',map:[
+      '###############','#S..1..A.....X#','#.#####.#####.#','#......*......#','###############']},
+    {name:'Crossed signals',meta:'LOOP 06 · INTERFERENCE',text:'Cyan and amber circuits answer to different switches.',hint:'Build one echo for each color. Order matters: cyan opens the way to amber.',map:[
+      '################','#S..1.A....2.BX#','#....#.........#','#....#..*......#','################']},
+    {name:'A crowded frequency',meta:'LOOP 07 · CHORUS',text:'The wide switch needs two echoes on it at once.',hint:'Record the same short route twice. Two past selves can share a tile.',map:[
+      '#############','#S..3..C..X.#','#...........#','#############']},
+    {name:'Pulse window',meta:'LOOP 08 · TIMING',text:'An echo can pass over a switch instead of stopping. Arrive at the gate on the same beat.',hint:'Record a route that steps down onto switch 1, then keeps moving. On replay, take six rights.',map:[
+      '#############','#S.....A..X.#','#.....1...*.#','#...........#','#############']},
+    {name:'Forked memory',meta:'LOOP 09 · SPLIT',text:'Two exits from the past must stay occupied while you take the center.',hint:'Record separate endings on the cyan and amber switches.',map:[
+      '###############','#.....1.......#','#S.#####A###.X#','#.....2.B..*..#','###############']},
+    {name:'Nested locks',meta:'LOOP 10 · RECURSION',text:'Each new echo depends on every earlier one. Build the chain carefully.',hint:'Stop echo one on cyan, echo two on amber, then take the final route.',map:[
+      '#################','#S..1.A..2.B...X#','#..#####.#####..#','#.......*.......#','#################']},
+    {name:'Three voices',meta:'LOOP 11 · RESONANCE',text:'A chorus switch and an amber lock divide the chamber.',hint:'Two short cyan recordings first. Use the opened gate to record on amber.',map:[
+      '#################','#S..3.C....2.B.X#','#......#####....#','#...........*...#','#################']},
+    {name:'Convergence',meta:'LOOP 12 · SOURCE',text:'Restore both circuits, gather the last fragments, and bring every timeline home.',hint:'Build outward: cyan, amber, then the chorus. The present takes the long lower route.',map:[
+      '###################','#S..1.A..2.B..3.CX#','#..#####.#####....#','#....*.......*....#','###################']}
+  ];
+  const cv=document.getElementById('game'),ctx=cv.getContext('2d');
+  const els={stage:document.getElementById('stage'),intro:document.getElementById('intro'),complete:document.getElementById('complete'),completeTitle:document.getElementById('completeTitle'),completeText:document.getElementById('completeText'),nextBtn:document.getElementById('nextBtn'),title:document.getElementById('missionTitle'),meta:document.getElementById('missionMeta'),briefNum:document.getElementById('briefNum'),briefTitle:document.getElementById('briefTitle'),briefText:document.getElementById('briefText'),step:document.getElementById('stepCount'),shard:document.getElementById('shardCount'),dots:document.getElementById('echoDots'),record:document.getElementById('recordBtn'),undo:document.getElementById('undoBtn'),restart:document.getElementById('restartBtn'),sound:document.getElementById('soundBtn'),levelBtn:document.getElementById('levelBtn'),drawer:document.getElementById('drawer'),grid:document.getElementById('levelGrid'),toast:document.getElementById('toast')};
+  let levelIndex=0,grid=[],W=0,H=0,start={x:1,y:1},exit={x:1,y:1},player={x:1,y:1},echoes=[],route=[],history=[],shards=new Set(),initialShards=[],steps=0,completed=new Set(),won=false,soundOn=true,audio=null,particles=[],shake=0,lastTime=0,started=false;
+  const dirs={U:[0,-1],D:[0,1],L:[-1,0],R:[1,0]};
+  const colors={};
+  function css(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}
+  function syncColors(){colors.bg=css('--well');colors.ink=css('--ink');colors.line=css('--line');colors.cyan=css('--cyan-bright');colors.coral=css('--coral');colors.gold=css('--gold');colors.panel=css('--panel');colors.muted=css('--muted')}
+  function key(x,y){return x+','+y}
+  function loadLevel(i){
+    levelIndex=i;const l=levels[i];H=l.map.length;W=Math.max.apply(null,l.map.map(r=>r.length));grid=l.map.map(r=>r.padEnd(W,'#').split(''));initialShards=[];
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const c=grid[y][x];if(c==='S'){start={x,y};grid[y][x]='.'}if(c==='X'){exit={x,y};grid[y][x]='.'}if(c==='*'){initialShards.push(key(x,y));grid[y][x]='.'}}
+    player={...start};echoes=[];route=[];history=[];steps=0;shards=new Set(initialShards);won=false;particles=[];
+    els.title.textContent=l.name;els.meta.textContent=l.meta;els.briefNum.textContent='TRANSMISSION '+String(i+1).padStart(2,'0');els.briefTitle.textContent=l.name;els.briefText.textContent=l.text;els.levelBtn.textContent=String(i+1).padStart(2,'0')+' / '+levels.length;els.complete.hidden=true;
+    updateUI();resize();renderLevelGrid();
+  }
+  function bodyCountOn(x,y){let n=(player.x===x&&player.y===y)?1:0;for(const e of echoes)if(e.x===x&&e.y===y)n++;return n}
+  function plateInfo(c){if(c==='1')return{group:'A',req:1,color:'cyan'};if(c==='2')return{group:'B',req:1,color:'gold'};if(c==='3')return{group:'C',req:2,color:'coral'};return null}
+  function gateOpen(g){
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const p=plateInfo(grid[y][x]);if(p&&p.group===g&&bodyCountOn(x,y)>=p.req)return true}return false
+  }
+  function canMove(body,nx,ny){if(nx<0||ny<0||nx>=W||ny>=H)return false;const c=grid[ny][nx];if(c==='#')return false;if((c==='A'||c==='B'||c==='C')&&!gateOpen(c))return false;return true}
+  function snapshot(){return{player:{...player},echoes:echoes.map(e=>({x:e.x,y:e.y,idx:e.idx,seq:e.seq.slice()})),route:route.slice(),shards:Array.from(shards),steps}}
+  function restore(s){player={...s.player};echoes=s.echoes.map(e=>({x:e.x,y:e.y,idx:e.idx,seq:e.seq.slice()}));route=s.route.slice();shards=new Set(s.shards);steps=s.steps;won=false;updateUI()}
+  function move(dir){
+    if(!started||won||els.intro.hidden===false||els.drawer.hidden===false)return;resumeAudio();history.push(snapshot());
+    for(const e of echoes){if(e.idx<e.seq.length){const d=dirs[e.seq[e.idx++]],nx=e.x+d[0],ny=e.y+d[1];if(canMove(e,nx,ny)){e.x=nx;e.y=ny}}}
+    const d=dirs[dir],nx=player.x+d[0],ny=player.y+d[1];
+    if(canMove(player,nx,ny)){player.x=nx;player.y=ny;route.push(dir);steps++;tone(320,.035,'square',.025);burst(player.x,player.y,colors.cyan,3)}else{history.pop();tone(110,.06,'square',.025);shake=5;showToast('Signal blocked')}
+    const k=key(player.x,player.y);if(shards.has(k)){shards.delete(k);tone(730,.11,'sine',.05);burst(player.x,player.y,colors.gold,16)}
+    updateUI();checkWin()
+  }
+  function record(){
+    if(won||route.length===0){showToast(route.length?'Loop already complete':'Move first, then record');return}
+    resumeAudio();echoes.push({x:start.x,y:start.y,idx:0,seq:route.slice()});player={...start};for(const e of echoes){e.x=start.x;e.y=start.y;e.idx=0}route=[];history=[];steps++;tone(210,.12,'sawtooth',.04);setTimeout(()=>tone(420,.16,'sine',.035),70);burst(start.x,start.y,colors.cyan,24);updateUI()
+  }
+  function undo(){if(won||history.length===0){showToast('Nothing to rewind');return}restore(history.pop());tone(180,.07,'triangle',.03)}
+  function restart(){loadLevel(levelIndex);tone(150,.08,'sine',.025);showToast('Loop reset')}
+  function checkWin(){
+    if(player.x===exit.x&&player.y===exit.y){if(shards.size){showToast(shards.size+' fragment'+(shards.size>1?'s':'')+' still missing');tone(120,.1,'square',.03);return}
+      won=true;completed.add(levelIndex);burst(exit.x,exit.y,colors.cyan,70);chime();setTimeout(()=>{els.completeTitle.textContent=levelIndex===levels.length-1?'The source remembers you.':'Signal restored.';els.completeText.textContent=levelIndex===levels.length-1?'Twelve loops converged. Every past self made the final step possible.':'Cleared in '+steps+' beats with '+echoes.length+' recorded echo'+(echoes.length===1?'':'es')+'.';els.nextBtn.textContent=levelIndex===levels.length-1?'Return to archive':'Continue to loop '+String(levelIndex+2).padStart(2,'0');els.complete.hidden=false;renderLevelGrid()},420)
+    }
+  }
+  function updateUI(){
+    els.step.textContent=String(steps).padStart(2,'0')+' BEATS';els.shard.textContent='◇ '+(initialShards.length-shards.size)+' / '+initialShards.length;els.undo.disabled=history.length===0;els.record.disabled=route.length===0||won;els.dots.innerHTML='';
+    const max=Math.max(3,echoes.length);for(let i=0;i<max;i++){const d=document.createElement('span');d.className='echo-dot'+(i<echoes.length?' filled':'');els.dots.appendChild(d)}
+  }
+  function showToast(msg){els.toast.textContent=msg;els.toast.classList.add('show');clearTimeout(showToast.t);showToast.t=setTimeout(()=>els.toast.classList.remove('show'),1200)}
+  function resize(){const r=els.stage.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);syncColors();draw()}
+  function layout(){const r=cv.getBoundingClientRect(),pad=Math.max(22,Math.min(r.width,r.height)*.075),top=48,usableW=r.width-pad*2,usableH=r.height-top-pad,cell=Math.min(usableW/W,usableH/H);return{cell,ox:(r.width-cell*W)/2,oy:top+(usableH-cell*H)/2}}
+  function roundRect(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
+  function draw(t){
+    const r=cv.getBoundingClientRect(),L=layout();ctx.clearRect(0,0,r.width,r.height);ctx.save();if(shake){ctx.translate((Math.random()-.5)*shake,(Math.random()-.5)*shake);shake*=.75;if(shake<.3)shake=0}
+    ctx.fillStyle=colors.bg;ctx.fillRect(0,0,r.width,r.height);
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const px=L.ox+x*L.cell,py=L.oy+y*L.cell,c=grid[y][x],m=L.cell*.1;
+      if(c==='#'){ctx.fillStyle=colors.ink;roundRect(px+m,py+m,L.cell-m*2,L.cell-m*2,Math.max(2,L.cell*.08));ctx.fill();ctx.globalAlpha=.15;ctx.fillStyle=colors.line;ctx.fillRect(px+m*2,py+m*2,L.cell-m*4,2);ctx.globalAlpha=1}
+      else{ctx.strokeStyle=colors.line;ctx.globalAlpha=.45;ctx.strokeRect(px+.5,py+.5,L.cell-1,L.cell-1);ctx.globalAlpha=1}
+      const p=plateInfo(c);if(p){const active=bodyCountOn(x,y)>=p.req,col=p.color==='cyan'?colors.cyan:p.color==='gold'?colors.gold:colors.coral;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(px+L.cell*.5,py+L.cell*.22);ctx.lineTo(px+L.cell*.78,py+L.cell*.5);ctx.lineTo(px+L.cell*.5,py+L.cell*.78);ctx.lineTo(px+L.cell*.22,py+L.cell*.5);ctx.closePath();if(active){ctx.fillStyle=col;ctx.fill()}ctx.stroke();if(p.req===2){ctx.fillStyle=active?colors.bg:col;ctx.font=`600 ${Math.max(8,L.cell*.2)}px DM Mono`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('2',px+L.cell*.5,py+L.cell*.51)}}
+      if(c==='A'||c==='B'||c==='C'){const open=gateOpen(c),col=c==='A'?colors.cyan:c==='B'?colors.gold:colors.coral;ctx.strokeStyle=col;ctx.lineWidth=Math.max(2,L.cell*.07);ctx.globalAlpha=open?.25:1;ctx.beginPath();ctx.moveTo(px+L.cell*.18,py+L.cell*.18);ctx.lineTo(px+L.cell*.82,py+L.cell*.82);ctx.moveTo(px+L.cell*.82,py+L.cell*.18);ctx.lineTo(px+L.cell*.18,py+L.cell*.82);ctx.stroke();ctx.globalAlpha=1}
+    }
+    let ex=L.ox+(exit.x+.5)*L.cell,ey=L.oy+(exit.y+.5)*L.cell,pulse=.84+.16*Math.sin((t||0)/260);ctx.save();ctx.translate(ex,ey);ctx.rotate(Math.PI/4);ctx.strokeStyle=colors.coral;ctx.lineWidth=3;ctx.strokeRect(-L.cell*.24,-L.cell*.24,L.cell*.48,L.cell*.48);ctx.globalAlpha=.25*pulse;ctx.fillStyle=colors.coral;ctx.fillRect(-L.cell*.17,-L.cell*.17,L.cell*.34,L.cell*.34);ctx.restore();
+    for(const s of shards){const q=s.split(',').map(Number),sx=L.ox+(q[0]+.5)*L.cell,sy=L.oy+(q[1]+.5)*L.cell;ctx.save();ctx.translate(sx,sy);ctx.rotate((t||0)/900);ctx.fillStyle=colors.gold;ctx.beginPath();ctx.moveTo(0,-L.cell*.24);ctx.lineTo(L.cell*.15,0);ctx.lineTo(0,L.cell*.24);ctx.lineTo(-L.cell*.15,0);ctx.closePath();ctx.fill();ctx.restore()}
+    echoes.forEach((e,i)=>{ctx.strokeStyle=colors.cyan;ctx.globalAlpha=.10;ctx.lineWidth=Math.max(1,L.cell*.1);ctx.beginPath();ctx.moveTo(L.ox+(start.x+.5)*L.cell,L.oy+(start.y+.5)*L.cell);let tx=start.x,ty=start.y;for(let j=0;j<Math.min(e.idx,e.seq.length);j++){const d=dirs[e.seq[j]];tx+=d[0];ty+=d[1];ctx.lineTo(L.ox+(tx+.5)*L.cell,L.oy+(ty+.5)*L.cell)}ctx.stroke();ctx.globalAlpha=1;drawBody(e.x,e.y,L,colors.cyan,true,i)});
+    drawBody(player.x,player.y,L,colors.coral,false,0);
+    const now=t||performance.now(),dt=Math.min(32,now-lastTime||16);lastTime=now;particles=particles.filter(p=>p.life>0);for(const p of particles){p.x+=p.vx*dt/16;p.y+=p.vy*dt/16;p.vy+=.006*dt;p.life-=dt;ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.col;ctx.fillRect(L.ox+(p.x+.5)*L.cell,L.oy+(p.y+.5)*L.cell,Math.max(1,L.cell*.06),Math.max(1,L.cell*.06))}ctx.globalAlpha=1;ctx.restore();
+    requestAnimationFrame(draw)
+  }
+  function drawBody(x,y,L,col,ghost,i){const px=L.ox+(x+.5)*L.cell,py=L.oy+(y+.5)*L.cell,s=L.cell*(ghost?.22:.25);ctx.save();ctx.translate(px,py);ctx.rotate(Math.PI/4);ctx.fillStyle=col;ctx.globalAlpha=ghost?.35:.95;ctx.fillRect(-s,-s,s*2,s*2);ctx.globalAlpha=1;ctx.strokeStyle=ghost?col:colors.panel;ctx.lineWidth=Math.max(1.5,L.cell*.045);ctx.strokeRect(-s,-s,s*2,s*2);ctx.restore();if(ghost){ctx.fillStyle=col;ctx.globalAlpha=.8;ctx.font=`500 ${Math.max(7,L.cell*.17)}px DM Mono`;ctx.textAlign='center';ctx.fillText(i+1,px,py+3);ctx.globalAlpha=1}}
+  function burst(x,y,col,n){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,s=.015+Math.random()*.035;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:280+Math.random()*350,max:630,col})}}
+  function resumeAudio(){if(!soundOn)return;if(!audio)audio=new(window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume()}
+  function tone(freq,dur,type,vol){if(!soundOn)return;resumeAudio();if(!audio)return;const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(vol,audio.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audio.currentTime+dur);o.connect(g).connect(audio.destination);o.start();o.stop(audio.currentTime+dur)}
+  function chime(){[440,554,659,880].forEach((f,i)=>setTimeout(()=>tone(f,.28,'sine',.045),i*75))}
+  function renderLevelGrid(){els.grid.innerHTML='';levels.forEach((l,i)=>{const b=document.createElement('button');b.className='level-tile'+(completed.has(i)?' done':'')+(i===levelIndex?' current':'');b.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span><b>'+l.name+'</b>';b.onclick=()=>{loadLevel(i);els.drawer.hidden=true};els.grid.appendChild(b)})}
+  document.getElementById('startBtn').onclick=()=>{started=true;els.intro.hidden=true;resumeAudio();tone(330,.15,'sine',.04)};
+  els.record.onclick=record;els.undo.onclick=undo;els.restart.onclick=restart;
+  els.nextBtn.onclick=()=>{els.complete.hidden=true;if(levelIndex===levels.length-1){els.drawer.hidden=false;renderLevelGrid()}else loadLevel(levelIndex+1)};
+  els.sound.onclick=()=>{soundOn=!soundOn;els.sound.textContent=soundOn?'♪':'×';els.sound.setAttribute('aria-label',soundOn?'Mute sound':'Enable sound');if(soundOn){resumeAudio();tone(440,.08,'sine',.04)}};
+  els.levelBtn.onclick=()=>{els.drawer.hidden=false;renderLevelGrid()};document.getElementById('closeDrawer').onclick=()=>els.drawer.hidden=true;
+  document.querySelectorAll('[data-dir]').forEach(b=>b.addEventListener('pointerdown',e=>{e.preventDefault();move(b.dataset.dir)}));
+  window.addEventListener('keydown',e=>{if(!els.drawer.hidden){if(e.key==='Escape')els.drawer.hidden=true;return}const map={ArrowUp:'U',w:'U',W:'U',ArrowDown:'D',s:'D',S:'D',ArrowLeft:'L',a:'L',A:'L',ArrowRight:'R',d:'R',D:'R'};if(map[e.key]){e.preventDefault();move(map[e.key])}else if(e.code==='Space'){e.preventDefault();record()}else if(e.key==='z'||e.key==='Z')undo();else if(e.key==='r'||e.key==='R')restart()});
+  let touch=null;cv.addEventListener('pointerdown',e=>{touch={x:e.clientX,y:e.clientY}});cv.addEventListener('pointerup',e=>{if(!touch)return;const dx=e.clientX-touch.x,dy=e.clientY-touch.y;touch=null;if(Math.max(Math.abs(dx),Math.abs(dy))<22)return;move(Math.abs(dx)>Math.abs(dy)?(dx>0?'R':'L'):(dy>0?'D':'U'))});
+  window.addEventListener('resize',resize);if(window.matchMedia)window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',syncColors);
+  loadLevel(0);requestAnimationFrame(draw);
+})();
+</script>
+</body>
+</html>
